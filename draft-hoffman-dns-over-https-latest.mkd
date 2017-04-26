@@ -1,0 +1,304 @@
+---
+title: DNS Queries over HTTPS
+abbrev: DNS in JSON
+docname: draft-hoffman-dns-over-https
+
+stand_alone: true
+
+ipr: trust200902
+area: Internet
+kw: Internet-Draft
+cat: exp
+
+pi:
+  toc: yes
+  tocdepth: 4
+  sortrefs: yes
+  symrefs: yes
+
+author:
+ -
+   ins: P. Hoffman
+   name: Paul Hoffman
+   org: ICANN
+   email: paul.hoffman@icann.org
+ -
+   ins: P. McManus
+   name: Patrick McManus
+   org: Mozilla
+   email: pmcmanus@mozilla.com
+
+normative:
+  RFC1035:
+  RFC2119:
+  RFC5246:
+  RFC6570:
+  RFC7232:
+  RFC7540:
+
+informative:
+  I-D.ietf-dnsop-dns-wireformat-http:
+  RFC5785:
+  RFC6147:
+  RFC7435:
+
+--- abstract
+
+Intermediaries such as governments and ISPs spoof DNS responses, and
+block DNS requests to particular recursive resolvers, for a variety of reasons.
+They spoof by capturing traffic on port 53, or by redirecting port 853 traffic in the hopes
+that the client is using opportunistic encryption.
+They block if they know the address of a resolver that they don't like, such as 
+public resolvers that give honest answers.
+
+This document describes how to run DNS service over TLS, specifically on HTTP/2,
+based on the "https:" URL scheme.
+This design prevents intermediaries from spoofing DNS responses, and makes
+it impossible for intermediaries to block the use of those recursive resolvers
+without blocking desired HTTP/2-over-TLS connections.
+It also prevents intermediaries or passive observers from seeing the DNS traffic.
+This design is meant for communication between a DNS stub resolver and a DNS recursive
+resolver.
+
+HTTP/2 was chosen instead of HTTP because a client wanting DNS service will
+get great value out of some of HTTP/2's inherent features such as streams and
+caching.
+
+<!--
+\[ This paragreaph is to be removed when this document is published as an RFC \]
+Comments on this draft can be sent to the *** DISPATCH ??? *** mailing list at
+<https://www.ietf.org/mailman/listinfo/SOMEURLGOESHERE>.
+
+  RFC4035:
+  RFC7230:
+  HTMLSPEC:
+    author:
+      org: W3C
+    date: 2016
+    title: HTML5, A vocabulary and associated APIs for HTML and XHTML
+    target: https://www.w3.org/TR/html5/
+  RFC5001:
+  RFC6891:
+  RFC6975:
+  RFC7049:
+  RFC7159:
+  RFC7252:
+  RFC7830:
+  RFC7871:
+-->
+--- middle
+
+# Introduction
+
+Over time, there have been many proposals for using HTTP and HTTPS as a substrate for DNS
+queries and responses.
+To date, none of those proposals have made it beyond early
+discussion, partially due to disagreement about what is the "best" method to do so.
+In particular, there has been disagreement about what the best format for the responses
+should be.
+Also, some early proposals have not followed best practices for using HTTP.
+
+This document defines a specific protocol for sending DNS {{RFC1035}} queries and getting DNS
+responses over HTTP/2 {{RFC7540}} that is running over TLS {{RFC5246}}.
+The queries defined here always use the "https:" URI scheme.
+
+A server that supports this protocol is called a "DNS API server" to differentiate it from
+a "DNS server" (one that uses the regular DNS protocol).
+Similarly, a client supports this protocol is called a "DNS API client".
+
+## Use Cases
+
+There are two primary use cases for this protocol. The primary one is to avoid
+intermediaries such as governments and ISPs from spoofing DNS responses, and
+blocking DNS requests to particular recursive resolvers.
+A secondary use case is a web browser that wants to send DNS queries
+protected in an existing HTTP/2-over-TLS session, most likely for better
+privacy.
+
+\[\[ Patrick adds something here about why HTTP/2 is better for this \]\]
+
+Note that these use cases are different than those in a similar protocol described at
+{{I-D.ietf-dnsop-dns-wireformat-http}}. The use case for that protocol is 
+proxying DNS queries over HTTP instead of over DNS itself.
+The use cases in this document all involve the TLS and HTTP/2 being originated at
+the location where the query is desired, not acting as a proxy.
+
+## Protocol Requirements
+
+The protocol described here bases its design on the following protocol requirements:
+
+* The protocol must use HTTP/2 semantics the way that they are commonly used
+  in other protocols; there is nothing special about the DNS use case.
+
+* The protocol must run over secure transport such as TLS (transport over QUIC
+  can be defined later as the QUIC protocol matures, and transport over future
+  protocols such as "HTTP/3" can also be defined later).
+
+* The query format must be able to be flexible enough to express every normal
+  DNS query.
+
+* The response must be able to be in different formats that can be described
+  by different documents.
+  However, this is a mandatory-to-implement response format defined so that
+  implementations will be interoperable.
+
+* Both the query format and the response formats must be extensible.
+  In specific, a query must be able to contain one or more EDNS extensions,
+  including those not yet defined. Further, it must be easy to define different
+  response formats and to extend already-defined formats.
+
+Non-requirements:
+
+* Supporting network-specific DNS64 {{RFC6147}}
+* Supporting other network-specific inferences from plaintext DNS queries
+
+## Terminology
+
+In this document, the key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" are to be interpreted as
+described in BCP 14, RFC 2119 {{RFC2119}}.
+
+# Template {#Template}
+
+The URI template (see {{RFC6570}}) for DNS API queries is:
+
+~~~
+{PREFIX}/{DNSMESSAGE}
+~~~
+
+The following variables are used to expand the URI template.
+
+## PREFIX
+
+"PREFIX" MUST be the URI fragment "https://example.net/.well_known/TBD1/".  The URI
+protocol MUST be "https:". 
+
+## DNSMESSAGE
+
+"DNSMESSAGE" MUST be the on-the-wire representation of a DNS query
+message as defined in {{RFC1035}}, encoded with URL encoding
+\[\[ REFERENCE NEEDED HERE \]\]. 
+The representation is of a query as it would be sent over UDP, not over TCP.
+
+# Queries {#queries}
+
+To send a DNS query, the DNS API client prepares an HTTP GET request using
+the template (see {{Template}}).
+
+The HTTP-related requirements include:
+
+* The HTTP GET request MUST have no body.
+
+* The HTTP GET request SHOULD be sent with an HTTP "Accept:" header to say what
+type of content can be returned; of course, a server can return whatever type
+of content it wants. If the request does not have an HTTP "Accept:" header, the
+DNS API server might return a content type that the DNS API client does not understand.
+
+* \[\[ TALK ABOUT THE MTI TO ACCEPT HERE \]\]
+
+* The HTTP GET request SHOULD use If-None-Match headers if earlier responses to the same
+query used HTTP ETag headers as described in {{RFC7232}}.
+
+\[\[ Paul needs to write a separate document defining the media type \]\]
+
+
+For example, assume that the server's PREFIX is:
+
+~~~
+   https://dnsserver.example.net/well_known/TBD1/
+~~~
+
+A query for the A records for "www.example.com" with recursion turned off
+would be:
+
+~~~
+   NEED A REAL EXAMPLE HERE
+~~~
+
+The HTTP request might look like:
+
+~~~
+   GET api/v1/www.example.com/1?rd=0 HTTP/1.1
+   User-Agent: curl/7.16.3 libcurl/7.16.3
+   Host: dnsserver.example.net
+   Accept: application/dns+json
+~~~
+
+
+
+# Responses {#Responses}
+
+Different response formats will provide more or less information from a DNS
+response. For example, one response type might include the information from the
+DNS header bytes while another might omit it. The amount and type of information
+that a response format gives is solely up to the format, and not defined in
+this protocol.
+
+At the time this is published, the response types are works in progress. The
+know response types include:
+
+* \[\[ REFERENCE THE NEW MEDIA TYPE \]\]
+
+In the HTTP responses, the HTTP cache headers MAY be set to shortest DNS TTL in the response.
+The HTTP responses SHOULD set the HTTP ETag headers as described in {{RFC7232}}.
+
+TODO: Add more detail about setting the HTTP cache headers.
+
+TODO: Add examples of creating these ETag headers.
+
+Servers conforming to this protocol MUST implement responding with messages
+formatted with \[\[ REFERENCE THE NEW MEDIA TYPE \]\].
+
+# Use in HTTP/2 {#h2}
+
+TODO: Full discussion about using this protocol in HTTP/2 for server push.
+This will also hopefully cover caching and DNS TTLs.
+
+
+# IANA Considerations {#ianacons}
+
+TODO: Create a new registry for option names for DNS queries.
+This will be a simple registry for new option names, probably with
+a designated expert.
+
+TODO: Replace TBD1 in the body with a string from the .well_known registry.
+Reference {{RFC5785}}.
+
+
+Security Considerations {#Security}
+=======================
+
+Running DNS over existing HTTP/2 over TLS connections relies on the security of the TLS connections
+themselves.
+
+A beneficial effect of using DNS over existing HTTP/2 over TLS connections after using DNS over
+port 53 is that the DNS messages are then encrypted.
+
+This protocol requires the use of TLS for communication. If a client does not enforce
+authentication of the TLS server, the communication channel will be susceptible to many
+security problems. See {{RFC7435}} for a fuller description of non-authenticated TLS.
+
+
+# Acknowledgements
+
+Joe Hildebrand contributed lots of material for a different interation of this document.
+
+--- back
+
+# Previous Work on DNS over HTTP or in Other Formats
+
+The following is an incomplete list of earlier work that related to DNS over HTTP or representing DNS
+data in other formats.
+
+The list includes links to the tools.ietf.org site (because these documents
+are all expired) and web sites of software.
+
+* https://tools.ietf.org/html/draft-mohan-dns-query-xml
+
+* https://tools.ietf.org/html/draft-daley-dnsxml
+
+* https://tools.ietf.org/html/draft-dulaunoy-dnsop-passive-dns-cof
+
+* https://tools.ietf.org/html/draft-bortzmeyer-dns-json
+
+* https://www.nlnetlabs.nl/projects/dnssec-trigger/

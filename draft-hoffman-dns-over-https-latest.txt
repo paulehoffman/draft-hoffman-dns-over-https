@@ -1,0 +1,448 @@
+
+
+
+
+Network Working Group                                         P. Hoffman
+Internet-Draft                                                     ICANN
+Intended status: Experimental                                 P. McManus
+Expires: October 27, 2017                                        Mozilla
+                                                          April 25, 2017
+
+
+                         DNS Queries over HTTPS
+                      draft-hoffman-dns-over-https
+
+Abstract
+
+   Intermediaries such as governments and ISPs spoof DNS responses, and
+   block DNS requests to particular recursive resolvers, for a variety
+   of reasons.  They spoof by capturing traffic on port 53, or by
+   redirecting port 853 traffic in the hopes that the client is using
+   opportunistic encryption.  They block if they know the address of a
+   resolver that they don't like, such as public resolvers that give
+   honest answers.
+
+   This document describes how to run DNS service over TLS, specifically
+   on HTTP/2, based on the "https:" URL scheme.  This design prevents
+   intermediaries from spoofing DNS responses, and makes it impossible
+   for intermediaries to block the use of those recursive resolvers
+   without blocking desired HTTP/2-over-TLS connections.  It also
+   prevents intermediaries or passive observers from seeing the DNS
+   traffic.  This design is meant for communication between a DNS stub
+   resolver and a DNS recursive resolver.
+
+   HTTP/2 was chosen instead of HTTP because a client wanting DNS
+   service will get great value out of some of HTTP/2's inherent
+   features such as streams and caching.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at http://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 1]
+
+Internet-Draft                 DNS in JSON                    April 2017
+
+
+   This Internet-Draft will expire on October 27, 2017.
+
+Copyright Notice
+
+   Copyright (c) 2017 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Use Cases . . . . . . . . . . . . . . . . . . . . . . . .   3
+     1.2.  Protocol Requirements . . . . . . . . . . . . . . . . . .   3
+     1.3.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   4
+   2.  Template  . . . . . . . . . . . . . . . . . . . . . . . . . .   4
+     2.1.  PREFIX  . . . . . . . . . . . . . . . . . . . . . . . . .   4
+     2.2.  DNSMESSAGE  . . . . . . . . . . . . . . . . . . . . . . .   4
+   3.  Queries . . . . . . . . . . . . . . . . . . . . . . . . . . .   4
+   4.  Responses . . . . . . . . . . . . . . . . . . . . . . . . . .   5
+   5.  Use in HTTP/2 . . . . . . . . . . . . . . . . . . . . . . . .   6
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   6
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .   6
+   8.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   6
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   7
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .   7
+     9.2.  Informative References  . . . . . . . . . . . . . . . . .   7
+   Appendix A.  Previous Work on DNS over HTTP or in Other Formats .   8
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   8
+
+1.  Introduction
+
+   Over time, there have been many proposals for using HTTP and HTTPS as
+   a substrate for DNS queries and responses.  To date, none of those
+   proposals have made it beyond early discussion, partially due to
+   disagreement about what is the "best" method to do so.  In
+   particular, there has been disagreement about what the best format
+   for the responses should be.  Also, some early proposals have not
+   followed best practices for using HTTP.
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 2]
+
+Internet-Draft                 DNS in JSON                    April 2017
+
+
+   This document defines a specific protocol for sending DNS [RFC1035]
+   queries and getting DNS responses over HTTP/2 [RFC7540] that is
+   running over TLS [RFC5246].  The queries defined here always use the
+   "https:" URI scheme.
+
+   A server that supports this protocol is called a "DNS API server" to
+   differentiate it from a "DNS server" (one that uses the regular DNS
+   protocol).  Similarly, a client supports this protocol is called a
+   "DNS API client".
+
+1.1.  Use Cases
+
+   There are two primary use cases for this protocol.  The primary one
+   is to avoid intermediaries such as governments and ISPs from spoofing
+   DNS responses, and blocking DNS requests to particular recursive
+   resolvers.  A secondary use case is a web browser that wants to send
+   DNS queries protected in an existing HTTP/2-over-TLS session, most
+   likely for better privacy.
+
+   [[ Patrick adds something here about why HTTP/2 is better for this ]]
+
+   Note that these use cases are different than those in a similar
+   protocol described at [I-D.ietf-dnsop-dns-wireformat-http].  The use
+   case for that protocol is proxying DNS queries over HTTP instead of
+   over DNS itself.  The use cases in this document all involve the TLS
+   and HTTP/2 being originated at the location where the query is
+   desired, not acting as a proxy.
+
+1.2.  Protocol Requirements
+
+   The protocol described here bases its design on the following
+   protocol requirements:
+
+   o  The protocol must use HTTP/2 semantics the way that they are
+      commonly used in other protocols; there is nothing special about
+      the DNS use case.
+
+   o  The protocol must run over secure transport such as TLS (transport
+      over QUIC can be defined later as the QUIC protocol matures, and
+      transport over future protocols such as "HTTP/3" can also be
+      defined later).
+
+   o  The query format must be able to be flexible enough to express
+      every normal DNS query.
+
+   o  The response must be able to be in different formats that can be
+      described by different documents.  However, this is a mandatory-
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 3]
+
+Internet-Draft                 DNS in JSON                    April 2017
+
+
+      to-implement response format defined so that implementations will
+      be interoperable.
+
+   o  Both the query format and the response formats must be extensible.
+      In specific, a query must be able to contain one or more EDNS
+      extensions, including those not yet defined.  Further, it must be
+      easy to define different response formats and to extend already-
+      defined formats.
+
+   Non-requirements:
+
+   o  Supporting network-specific DNS64 [RFC6147]
+
+   o  Supporting other network-specific inferences from plaintext DNS
+      queries
+
+1.3.  Terminology
+
+   In this document, the key words "MUST", "MUST NOT", "REQUIRED",
+   "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY",
+   and "OPTIONAL" are to be interpreted as described in BCP 14, RFC 2119
+   [RFC2119].
+
+2.  Template
+
+   The URI template (see [RFC6570]) for DNS API queries is:
+
+   {PREFIX}/{DNSMESSAGE}
+
+   The following variables are used to expand the URI template.
+
+2.1.  PREFIX
+
+   "PREFIX" MUST be the URI fragment "https://example.net/.well_known/
+   TBD1/".  The URI protocol MUST be "https:".
+
+2.2.  DNSMESSAGE
+
+   "DNSMESSAGE" MUST be the on-the-wire representation of a DNS query
+   message as defined in [RFC1035], encoded with URL encoding [[
+   REFERENCE NEEDED HERE ]].  The representation is of a query as it
+   would be sent over UDP, not over TCP.
+
+3.  Queries
+
+   To send a DNS query, the DNS API client prepares an HTTP GET request
+   using the template (see Section 2).
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 4]
+
+Internet-Draft                 DNS in JSON                    April 2017
+
+
+   The HTTP-related requirements include:
+
+   o  The HTTP GET request MUST have no body.
+
+   o  The HTTP GET request SHOULD be sent with an HTTP "Accept:" header
+      to say what type of content can be returned; of course, a server
+      can return whatever type of content it wants.  If the request does
+      not have an HTTP "Accept:" header, the DNS API server might return
+      a content type that the DNS API client does not understand.
+
+   o  [[ TALK ABOUT THE MTI TO ACCEPT HERE ]]
+
+   o  The HTTP GET request SHOULD use If-None-Match headers if earlier
+      responses to the same query used HTTP ETag headers as described in
+      [RFC7232].
+
+   [[ Paul needs to write a separate document defining the media type ]]
+
+   For example, assume that the server's PREFIX is:
+
+      https://dnsserver.example.net/well_known/TBD1/
+
+   A query for the A records for "www.example.com" with recursion turned
+   off would be:
+
+      NEED A REAL EXAMPLE HERE
+
+   The HTTP request might look like:
+
+      GET api/v1/www.example.com/1?rd=0 HTTP/1.1
+      User-Agent: curl/7.16.3 libcurl/7.16.3
+      Host: dnsserver.example.net
+      Accept: application/dns+json
+
+4.  Responses
+
+   Different response formats will provide more or less information from
+   a DNS response.  For example, one response type might include the
+   information from the DNS header bytes while another might omit it.
+   The amount and type of information that a response format gives is
+   solely up to the format, and not defined in this protocol.
+
+   At the time this is published, the response types are works in
+   progress.  The know response types include:
+
+   o  [[ REFERENCE THE NEW MEDIA TYPE ]]
+
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 5]
+
+Internet-Draft                 DNS in JSON                    April 2017
+
+
+   In the HTTP responses, the HTTP cache headers MAY be set to shortest
+   DNS TTL in the response.  The HTTP responses SHOULD set the HTTP ETag
+   headers as described in [RFC7232].
+
+   TODO: Add more detail about setting the HTTP cache headers.
+
+   TODO: Add examples of creating these ETag headers.
+
+   Servers conforming to this protocol MUST implement responding with
+   messages formatted with [[ REFERENCE THE NEW MEDIA TYPE ]].
+
+5.  Use in HTTP/2
+
+   TODO: Full discussion about using this protocol in HTTP/2 for server
+   push.  This will also hopefully cover caching and DNS TTLs.
+
+6.  IANA Considerations
+
+   TODO: Create a new registry for option names for DNS queries.  This
+   will be a simple registry for new option names, probably with a
+   designated expert.
+
+   TODO: Replace TBD1 in the body with a string from the .well_known
+   registry.  Reference [RFC5785].
+
+7.  Security Considerations
+
+   Running DNS over existing HTTP/2 over TLS connections relies on the
+   security of the TLS connections themselves.
+
+   A beneficial effect of using DNS over existing HTTP/2 over TLS
+   connections after using DNS over port 53 is that the DNS messages are
+   then encrypted.
+
+   This protocol requires the use of TLS for communication.  If a client
+   does not enforce authentication of the TLS server, the communication
+   channel will be susceptible to many security problems.  See [RFC7435]
+   for a fuller description of non-authenticated TLS.
+
+8.  Acknowledgements
+
+   Joe Hildebrand contributed lots of material for a different
+   interation of this document.
+
+
+
+
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 6]
+
+Internet-Draft                 DNS in JSON                    April 2017
+
+
+9.  References
+
+9.1.  Normative References
+
+   [RFC1035]  Mockapetris, P., "Domain names - implementation and
+              specification", STD 13, RFC 1035, DOI 10.17487/RFC1035,
+              November 1987, <http://www.rfc-editor.org/info/rfc1035>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <http://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246,
+              DOI 10.17487/RFC5246, August 2008,
+              <http://www.rfc-editor.org/info/rfc5246>.
+
+   [RFC6570]  Gregorio, J., Fielding, R., Hadley, M., Nottingham, M.,
+              and D. Orchard, "URI Template", RFC 6570,
+              DOI 10.17487/RFC6570, March 2012,
+              <http://www.rfc-editor.org/info/rfc6570>.
+
+   [RFC7232]  Fielding, R., Ed. and J. Reschke, Ed., "Hypertext Transfer
+              Protocol (HTTP/1.1): Conditional Requests", RFC 7232,
+              DOI 10.17487/RFC7232, June 2014,
+              <http://www.rfc-editor.org/info/rfc7232>.
+
+   [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
+              Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
+              DOI 10.17487/RFC7540, May 2015,
+              <http://www.rfc-editor.org/info/rfc7540>.
+
+9.2.  Informative References
+
+   [I-D.ietf-dnsop-dns-wireformat-http]
+              Song, L., Vixie, P., Kerr, S., and R. Wan, "DNS wire-
+              format over HTTP", draft-ietf-dnsop-dns-wireformat-http-01
+              (work in progress), March 2017.
+
+   [RFC5785]  Nottingham, M. and E. Hammer-Lahav, "Defining Well-Known
+              Uniform Resource Identifiers (URIs)", RFC 5785,
+              DOI 10.17487/RFC5785, April 2010,
+              <http://www.rfc-editor.org/info/rfc5785>.
+
+
+
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 7]
+
+Internet-Draft                 DNS in JSON                    April 2017
+
+
+   [RFC6147]  Bagnulo, M., Sullivan, A., Matthews, P., and I. van
+              Beijnum, "DNS64: DNS Extensions for Network Address
+              Translation from IPv6 Clients to IPv4 Servers", RFC 6147,
+              DOI 10.17487/RFC6147, April 2011,
+              <http://www.rfc-editor.org/info/rfc6147>.
+
+   [RFC7435]  Dukhovni, V., "Opportunistic Security: Some Protection
+              Most of the Time", RFC 7435, DOI 10.17487/RFC7435,
+              December 2014, <http://www.rfc-editor.org/info/rfc7435>.
+
+Appendix A.  Previous Work on DNS over HTTP or in Other Formats
+
+   The following is an incomplete list of earlier work that related to
+   DNS over HTTP or representing DNS data in other formats.
+
+   The list includes links to the tools.ietf.org site (because these
+   documents are all expired) and web sites of software.
+
+   o  https://tools.ietf.org/html/draft-mohan-dns-query-xml
+
+   o  https://tools.ietf.org/html/draft-daley-dnsxml
+
+   o  https://tools.ietf.org/html/draft-dulaunoy-dnsop-passive-dns-cof
+
+   o  https://tools.ietf.org/html/draft-bortzmeyer-dns-json
+
+   o  https://www.nlnetlabs.nl/projects/dnssec-trigger/
+
+Authors' Addresses
+
+   Paul Hoffman
+   ICANN
+
+   Email: paul.hoffman@icann.org
+
+
+   Patrick McManus
+   Mozilla
+
+   Email: pmcmanus@mozilla.com
+
+
+
+
+
+
+
+
+
+
+
+Hoffman & McManus       Expires October 27, 2017                [Page 8]
