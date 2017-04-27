@@ -150,6 +150,7 @@ The protocol described here bases its design on the following protocol requireme
 Non-requirements:
 
 * Supporting network-specific DNS64 {{RFC6147}}
+
 * Supporting other network-specific inferences from plaintext DNS queries
 
 ## Terminology
@@ -194,13 +195,11 @@ type of content can be returned; of course, a server can return whatever type
 of content it wants. If the request does not have an HTTP "Accept:" header, the
 DNS API server might return a content type that the DNS API client does not understand.
 
-* \[\[ TALK ABOUT THE MTI TO ACCEPT HERE \]\]
+* If given, the HTTP "Accept:" MUST contain at least one entry, "application/dns-wireformat".
+Other entries MAY be given
 
 * The HTTP GET request SHOULD use If-None-Match headers if earlier responses to the same
 query used HTTP ETag headers as described in {{RFC7232}}.
-
-\[\[ Paul needs to write a separate document defining the media type \]\]
-
 
 For example, assume that the server's PREFIX is:
 
@@ -218,12 +217,11 @@ would be:
 The HTTP request might look like:
 
 ~~~
-   GET api/v1/www.example.com/1?rd=0 HTTP/1.1
+   GET well_known/SOMEURLENCODEDSTUFFGOESHERE
    User-Agent: curl/7.16.3 libcurl/7.16.3
    Host: dnsserver.example.net
-   Accept: application/dns+json
+   Accept: application/dns-wireformat
 ~~~
-
 
 
 # Responses {#Responses}
@@ -235,9 +233,8 @@ that a response format gives is solely up to the format, and not defined in
 this protocol.
 
 At the time this is published, the response types are works in progress. The
-know response types include:
-
-* \[\[ REFERENCE THE NEW MEDIA TYPE \]\]
+only known response type is "application/dns-wireformat", but it is likely that
+at least one JSON-based response format might be defined in the future.
 
 In the HTTP responses, the HTTP cache headers MAY be set to shortest DNS TTL in the response.
 The HTTP responses SHOULD set the HTTP ETag headers as described in {{RFC7232}}.
@@ -247,21 +244,13 @@ TODO: Add more detail about setting the HTTP cache headers.
 TODO: Add examples of creating these ETag headers.
 
 Servers conforming to this protocol MUST implement responding with messages
-formatted with \[\[ REFERENCE THE NEW MEDIA TYPE \]\].
-
-# Use in HTTP/2 {#h2}
-
-TODO: Full discussion about using this protocol in HTTP/2 for server push.
-This will also hopefully cover caching and DNS TTLs.
+formatted with "application/dns-wireformat".
 
 
-# IANA Considerations {#ianacons}
+IANA Considerations {#ianacons}
+=======================
 
-TODO: Create a new registry for option names for DNS queries.
-This will be a simple registry for new option names, probably with
-a designated expert.
-
-TODO: Replace TBD1 in the body with a string from the .well_known registry.
+TODO: Apply for an entry for the .well_known registry for TBD1.
 Reference {{RFC5785}}.
 
 
