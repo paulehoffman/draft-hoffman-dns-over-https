@@ -1,9 +1,9 @@
 To: ietf-types@iana.org
-Subject: Registration of MIME media type application/dns-wireformat
+Subject: Registration of MIME media type application/dns-udpwireformat
 
 MIME media type name: application
 
-MIME subtype name: dns-wireformat
+MIME subtype name: dns-udpwireformat
 
 Required parameters: n/a
  
