@@ -1,14 +1,14 @@
 ---
 title: DNS Queries over HTTPS
-abbrev: DNS in JSON
+abbrev: DNS Queries over HTTPS
 docname: draft-hoffman-dns-over-https
 
 stand_alone: true
 
 ipr: trust200902
-area: Internet
+area: Art
 kw: Internet-Draft
-cat: exp
+cat: std
 
 pi:
   toc: yes
