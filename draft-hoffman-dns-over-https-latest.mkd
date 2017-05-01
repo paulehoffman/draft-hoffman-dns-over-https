@@ -118,7 +118,7 @@ tracking. HTTP authentication and proxy friendliness are expected to
 make this protocol function in some environments where DNS directly on
 TLS would not.
 
-A secondary use case is web applications that wants to access DNS
+A secondary use case is web applications that want to access DNS
 information. Standardizing an HTTPS mechanism allows this to be done
 in a way consistent with the cross-origin resource sharing {{CORS}}
 security model of the web and also integrate the caching mechanisms of DNS
