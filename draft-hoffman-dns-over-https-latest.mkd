@@ -229,6 +229,11 @@ At the time this is published, the response types are works in progress. The
 only known response type is "application/dns-udpwireformat", but it is likely that
 at least one JSON-based response format might be defined in the future.
 
+Native HTTP methods are used to correlate requests and
+responses. Responses may be returned in a different temporal order than
+requests were made using the protocols native multistreaming
+functionality.
+
 In the HTTP responses, the HTTP cache headers SHOULD be set to expire
 at the same time as the shortest DNS TTL in the response. As DNS
 provides only caching but not revalidation semantics, DNS over HTTP
