@@ -316,7 +316,7 @@ Joe Hildebrand contributed lots of material for a different iteration of this do
 
 # Previous Work on DNS over HTTP or in Other Formats
 
-The following is an incomplete list of earlier work that related to DNS over HTTP v1 or representing DNS
+The following is an incomplete list of earlier work that related to DNS over HTTP/1 or representing DNS
 data in other formats.
 
 The list includes links to the tools.ietf.org site (because these documents
