@@ -308,6 +308,12 @@ HTTP connection. By requiring at least {{RFC7540}} levels of support
 for TLS this protocol expects to use current best practices for secure
 transport.
 
+Session level encryption has well known weaknesses with respect to
+traffic analysis which might be particularly acute when dealing with
+DNS queries. Sections 10.6 (Compression) and 10.7 (Padding) of
+{{RFC7540}} provide some further advice on mitigations within an
+HTTP/2 context.
+
 # Acknowledgments
 
 Joe Hildebrand contributed lots of material for a different iteration of this document.
