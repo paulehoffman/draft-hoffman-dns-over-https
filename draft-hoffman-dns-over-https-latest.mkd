@@ -191,6 +191,16 @@ say what type of content can be understood in response. The client
 MUST be prepared to process "application/dns-udpwireformat" responses
 but MAY process any other type it receives.
 
+In order to maximize cache friendliness, DNS API Clients SHOULD
+use the same ID (the first two bytes of the header) for every DNS request.
+The exact mechanism for doing so is dependent on the media type in use.
+HTTP semantics correlate the request and response which eliminates the need
+for the ID in a media type such as application/dns-udpwireformat.
+Using a constant value greatly increases the opportunity for successful caching.
+
+DNS API clients can use HTTP/2 padding and compression in the same way
+that other HTTP/2 clients use (or don't use) them.
+
 ## Example
 
 For example, assume a DNS API server is following this specification
