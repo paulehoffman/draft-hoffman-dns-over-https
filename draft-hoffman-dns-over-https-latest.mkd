@@ -163,13 +163,13 @@ negotiation mechanism
 
 # The HTTP Request
 
-The URI MUST be formed from the https scheme and the DNS API server
-authority and path from protocol configuration information.
+The URI MUST use the https scheme. The authority and path elements of
+the URI come from the DNS API server configuration.
 
 The configuration SHOULD use the path "/.well-known/dns-query" to help
-contextualize DNS Query requests that may be pushed to the client by
-the origin server at the HTTP layer. (See {{iana}} for the
-registration of this in the well-known URI registry.)
+contextualize DNS Query requests pushed on an active HTTP/2
+connection. (See {{iana}} for the registration of this in the
+well-known URI registry.)
 
 Some forms of the request may also include a HTTP query as defined by
 {{RFC3986}}.
