@@ -41,6 +41,7 @@ normative:
 informative:
   I-D.ietf-dnsop-dns-wireformat-http:
   RFC6147:
+  RFC6891:
   CORS:
     title: "Cross-Origin Resource Sharing"
     author:
@@ -142,14 +143,14 @@ The protocol described here bases its design on the following protocol requireme
   DNS query.
 
 * The protocol must allow implementations to use HTTP's content
-negotiation mechanism
+  negotiation mechanism.
 
 * The protocol must ensure interoperable media formats through a
   mandatory to implement format wherein a query must be able to
   contain one or more EDNS extensions, including those not yet defined.
 
 * The protocol must use a secure transport that meets the
-  requirements for modern https://
+  requirements for modern https://.
 
 ## Non-requirements
 
@@ -176,17 +177,22 @@ HTTP/2 connection.
 Some forms of the request may also include a HTTP query as defined by
 {{RFC3986}}.
 
-A DNS API Client may encode the DNS query into the HTTP request in two different ways:
+A DNS API Client encodes the DNS query into the HTTP request in one
+of two different methods:
 
-1 - Using the on-the-wire representation of a DNS message defined in
+GET:
+: Using the on-the-wire representation of a DNS message defined in
 {{RFC1035}} as the query string portion of the URI, encoded as
-necessary with {{RFC3986}}. This uses the GET HTTP method. It is the
-preferred approach as it is more HTTP cache friendly.
+necessary with {{RFC3986}}, using the GET HTTP method. This is the
+preferred approach because it is friendlier to HTTP caches.
 
-2 - The DNS query may be included as the message body of the HTTP
-request and the request uses the POST method. The body uses a media
-type selected by the DNS API Client that MUST be indicated by the
-request Content-Type header.
+POST:
+: Including the DNS query as the message body of the HTTP
+request, with the request using the POST method. The body MUST use a media
+type selected by the DNS API Client, and that media type MUST be indicated by the
+request's Content-Type header.
+
+The DNS request MAY have one or more EDNS(0) extensions {{RFC6891}}.
 
 The DNS API Client SHOULD include an HTTP "Accept:" request header to
 say what type of content can be understood in response. The client
@@ -206,8 +212,8 @@ that other HTTP/2 clients use (or don't use) them.
 ## Example
 
 For example, assume a DNS API server is following this specification
-on origin https://dnsserver.example.net/. The example uses
-HTTP/2 formatting from {{RFC7540}}.
+on origin https://dnsserver.example.net/ and the well-known path.
+The example uses HTTP/2 formatting from {{RFC7540}}.
 
 A query for the IN A records for "www.example.com" with recursion
 turned on using the GET approach would be:
@@ -249,6 +255,9 @@ this protocol.
 At the time this is published, the response types are works in progress. The
 only known response type is "application/dns-udpwireformat", but it is likely that
 at least one JSON-based response format might be defined in the future.
+
+The DNS response MAY have one or more EDNS(0) extensions, depending on the
+extension definition of the extensions given in the DNS request.
 
 Native HTTP methods are used to correlate requests and
 responses. Responses may be returned in a different temporal order than
@@ -334,6 +343,7 @@ HTTP/2 context.
 # Acknowledgments
 
 Joe Hildebrand contributed lots of material for a different iteration of this document.
+Helpful early comments were given by Ben Schwartz and Mark Nottingham.
 
 --- back
 
