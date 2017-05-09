@@ -184,7 +184,7 @@ of two different methods:
 GET:
 : Using the on-the-wire representation of a DNS message defined in
 {{RFC1035}} as the query string portion of the URI, encoded with base64url {{RFC4648}},
-using the GET HTTP method. This is the
+using the GET HTTP method. Padding characters for base64url MUST NOT be included. This is the
 preferred approach because it is friendlier to HTTP caches.
 
 POST:
