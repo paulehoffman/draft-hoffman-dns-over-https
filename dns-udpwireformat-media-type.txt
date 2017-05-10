@@ -41,4 +41,4 @@ Restrictions on usage:  n/a
 
 Author:  Paul Hoffman, paul.hoffman@icann.org
 
-Change controller:  Paul Hoffman, paul.hoffman@icann.org
+Change controller:  IESG
