@@ -32,6 +32,7 @@ normative:
   RFC1035:
   RFC2119:
   RFC3986:
+  RFC4648:
   RFC5246:
   RFC5785:
   RFC7230:
@@ -182,8 +183,8 @@ of two different methods:
 
 GET:
 : Using the on-the-wire representation of a DNS message defined in
-{{RFC1035}} as the query string portion of the URI, encoded as
-necessary with {{RFC3986}}, using the GET HTTP method. This is the
+{{RFC1035}} as the query string portion of the URI, encoded with base64url {{RFC4648}},
+using the GET HTTP method. Padding characters for base64url MUST NOT be included. This is the
 preferred approach because it is friendlier to HTTP caches.
 
 POST:
@@ -218,12 +219,20 @@ The example uses HTTP/2 formatting from {{RFC7540}}.
 A query for the IN A records for "www.example.com" with recursion
 turned on using the GET approach would be:
 
+<!--
+Raw hex for query
+abcd0100
+0001000000000000
+03777777076578616d706c6503636f6d00
+00010001
+-->
+
 ~~~~~
 :method = GET
 :scheme = https
 :authority = dnsserver.example.net
-:path = /.well-known/dns-query?%ab%cd%01%00%00%01%00%00%00%00 (no CR)
-                         %00%00%03www%07example%03com%00%00%01%00%01
+:path = /.well-known/dns-query?q80BAAABAAAAAAAAA3d3dwdleGF  (no CR)
+                               tcGxlA2NvbQAAAQAB
 accept = application/dns-udpwireformat, application/dns-futureJsonDns
 ~~~~~
 
@@ -285,6 +294,19 @@ This is an example response for a query for the IN A records for
 "www.example.com" with recursion turned on. The response bears one
 record with an address of 93.184.216.34 and a TTL of 128 seconds.
 
+<!--
+Raw hex for response
+abcd8180
+0001000100000000
+03777777076578616d706c6503636f6d00
+00010001
+03777777076578616d706c6503636f6d00
+00010001
+00000080
+0004
+5db8d822
+-->
+
 ~~~~~
 :status = 200
 content-type = application/dns-udpwireformat
@@ -296,7 +318,7 @@ abcd 8180 0001 0001 0000 0000 0377 7777
 0765 7861 6d70 6c65 0363 6f6d 0000 0100
 
 0103 7777 7707 6578 616d 706c 6503 636f
-6d00 0001 0001 0000 0080 0004 5Db8 d822
+6d00 0001 0001 0000 0080 0004 5db8 d822
 ~~~~~
 
 # HTTP Integration
