@@ -98,12 +98,12 @@ The integration with HTTP provides a transport suitable for both
 traditional DNS clients and native web applications seeking access to
 the DNS.
 
+# Terminology
+
 A server that supports this protocol is called a "DNS API server" to
 differentiate it from a "DNS server" (one that uses the regular DNS
 protocol).  Similarly, a client that supports this protocol is called a
 "DNS API client".
-
-# Terminology
 
 In this document, the key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" are to be interpreted as
@@ -184,8 +184,7 @@ of two different methods:
 GET:
 : Using the on-the-wire representation of a DNS message defined in
 {{RFC1035}} as the query string portion of the URI, encoded with base64url {{RFC4648}},
-using the GET HTTP method. Padding characters for base64url MUST NOT be included. This is the
-preferred approach because it is friendlier to HTTP caches.
+using the GET HTTP method. Padding characters for base64url MUST NOT be included.
 
 POST:
 : Including the DNS query as the message body of the HTTP
@@ -193,17 +192,19 @@ request, with the request using the POST method. The body MUST use a media
 type selected by the DNS API Client, and that media type MUST be indicated by the
 request's Content-Type header.
 
-The DNS request MAY have one or more EDNS(0) extensions {{RFC6891}}.
+Using GET is friendlier to currently-deployed HTTP caches than using POST.
 
 The DNS API Client SHOULD include an HTTP "Accept:" request header to
 say what type of content can be understood in response. The client
 MUST be prepared to process "application/dns-udpwireformat" responses
 but MAY process any other type it receives.
 
-In order to maximize cache friendliness, DNS API Clients SHOULD
+DNS API clients using the DNS wire format MAY have one or more EDNS(0)
+extensions {{RFC6891}} in the request.
+
+In order to maximize cache friendliness, DNS API clients using the DNS wire format SHOULD
 use the same ID (the first two bytes of the header) for every DNS request.
-The exact mechanism for doing so is dependent on the media type in use.
-HTTP semantics correlate the request and response which eliminates the need
+HTTP semantics correlate the request and response, thus eliminating the need
 for the ID in a media type such as application/dns-udpwireformat.
 Using a constant value greatly increases the opportunity for successful caching.
 
