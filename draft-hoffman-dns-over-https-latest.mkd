@@ -195,6 +195,8 @@ When using the GET method, the URI path MUST contain
 the format used for the request, and "BBB" is the content of
 the body.
 
+Using GET is friendlier to currently-deployed HTTP caches than using POST.
+
 The DNS API Client SHOULD include an HTTP "Accept:" request header to
 say what type of content can be understood in response. The client
 MUST be prepared to process "application/dns-udpwireformat" 
