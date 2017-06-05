@@ -36,15 +36,12 @@ normative:
   RFC4648:
   RFC5246:
   RFC5785:
-  RFC7159:
   RFC7230:
   RFC7540:
   RFC7858:
 
 informative:
   I-D.ietf-dnsop-dns-wireformat-http:
-  RFC3492:
-  RFC5890:
   RFC6147:
   RFC6891:
   CORS:
@@ -185,7 +182,7 @@ HTTP/2 connection.
 A DNS API Client encodes the DNS query into the HTTP request
 using the HTTP GET or POST methods.
 The messages can use the on-the-wire representation of a DNS message defined in {{dnswire}}
-or the simple JSON format defined in {{I-D.ietf-dnsop-dns-wireformat-http}}.
+or the simple JSON format defined in {{I-D.hoffman-simplednsjson}}.
 
 When using the POST method, the body MUST use a media
 type selected by the DNS API client, and that media type MUST be indicated by the
