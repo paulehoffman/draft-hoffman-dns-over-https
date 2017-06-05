@@ -29,6 +29,7 @@ author:
    email: pmcmanus@mozilla.com
 
 normative:
+  I-D.hoffman-simplednsjson:
   RFC1035:
   RFC2119:
   RFC3986:
@@ -143,10 +144,10 @@ The protocol described here bases its design on the following protocol requireme
 
 * The protocol must use normal HTTP semantics.
 
-* The query format must be flexible enough to express every normal
+* The queries and responses must be able to express every normal
   DNS query.
 
-* The query format must also be flexible enough to allow
+* The queries and responses must be able to allow
   simple queries and responses in JSON.
 
 * The protocol must allow implementations to use HTTP's content
@@ -183,24 +184,19 @@ HTTP/2 connection.
 
 A DNS API Client encodes the DNS query into the HTTP request
 using the HTTP GET or POST methods.
+The messages can use the on-the-wire representation of a DNS message defined in {{dnswire}}
+or the simple JSON format defined in {{I-D.ietf-dnsop-dns-wireformat-http}}.
 
-GET:
-: Using the on-the-wire representation of a DNS message defined in {{dnswire}}
-or the simple JSON format defined in {{simplejson}}
-as the query string portion of the URI.
-
-POST:
-: Including the DNS query as the message body of the HTTP
-request, with the request using the POST method. The body MUST use a media
+When using the POST method, the body MUST use a media
 type selected by the DNS API client, and that media type MUST be indicated by the
 request's Content-Type header.
 
-Using GET is the preferred approach because it is friendlier to HTTP caches.
+Using the GET method is friendlier to HTTP caches.
 
 When using the GET method, the URI path MUST contain
 ?content-type=TTT&body=BBBB, where "TTT" is the media type of
 the format used for the request, and "BBB" is the content of
-the body, as described in {{dnswire}} and {{simplejson}}.
+the body.
 
 The DNS API Client SHOULD include an HTTP "Accept:" request header to
 say what type of content can be understood in response. The client
@@ -230,66 +226,6 @@ Padding characters for base64url MUST NOT be included.
 DNS API clients using the DNS wire format MAY have one or more EDNS(0)
 extensions {{RFC6891}} in the request.
 
-## Simple JSON DNS Query Format {#simplejson}
-
-This format allows clients to ask a small number simple questions for
-a domain name, and get back just the basic answer information.
-The contents of the message are in JSON {{RFC7159}}.
-
-The media type is "application/simpledns+json".
-The body of the query, and the contents of the response, are JSON objects.
-The definition of those objects is given here, but the query and
-response objects MAY have other elements that are either defined later
-or are based on local implementation decisions.
-
-### Queries
-
-The structure of a query is:
-
-~~~~~
-   { "name": str,
-     "type": str
-   }
-~~~~~
-
-The "name" member is required, the "type" member is optional.
-
-The name is given as a host name; IDNs {{RFC5890}} are expressed in Punycode {{RFC3492}}.
-
-The type is given as a string, and there are three values defined:
-"A", "AAAA", and "A-and-AAAA". If the "type" member is not
-included, the server treats the query as if it was for "A-and-AAAA".
-
-### Responses
-
-The structure of a response is:
-
-~~~~~
-   { "code": int,
-     "v4": [ zero or more addresses as strs ],
-     "v6": [ zero or more addresses as strs ]
-   }
-~~~~~
-
-The "code" member is required, and the "v4" and "v6" members are optional.
-
-The value for "code" is one of the following:
-
-0:
-: The name exists. This does not mean that A or AAAA records exist, just that the name
-exists. This code can be treated similarly to a NOERROR response in DNS.
-
-1:
-: The name does not exist.
-This code can be treated similarly to a NXDOMAIN response in DNS.
-
-2:
-: Service failure.
-This code can be treated similarly to a SERVFAIL response in DNS.
-
-If they are included, the "v4" and "v6" members each contain a list
-of strings, each string representing a single address.
-
 ## Examples
 
 For example, assume a DNS API server is following this specification
@@ -314,23 +250,8 @@ abcd0100
 :path = /.well-known/dns-query?  (no CR)
         content-type=application/dns-udpwireformat&  (no CR)
         body=q80BAAABAAAAAAAAA3d3dwdleGFtcGxlA2NvbQAAAQAB
-accept = application/dns-udpwireformat, application/simpledns+json
+accept = application/dns-udpwireformat
 ~~~~~
-
-The same DNS query, using the GET method with the simple DNS would be:
-
-~~~~~
-:method = GET
-:scheme = https
-:authority = dnsserver.example.net
-:path = /.well-known/dns-query?
-        content-type=application/simpledns+json&  (no CR)
-        { "name": "www.example.com", "type": "A" }
-accept = application/dns-udpwireformat, application/simpledns+json
-~~~~~
-
-\[\[ Does anything in that preceding example need to be escaped
-or quoted? \]\]
 
 The same DNS query, using the POST method with the wire format would be:
 
@@ -339,7 +260,7 @@ The same DNS query, using the POST method with the wire format would be:
 :scheme = https
 :authority = dnsserver.example.net
 :path = /.well-known/dns-query
-accept = application/dns-udpwireformat, application/simpledns+json
+accept = application/dns-udpwireformat
 content-type = application/dns-udpwireformat
 content-length = 33
 
@@ -357,11 +278,8 @@ DNS header bytes while another might omit it. The amount and type of information
 that a media type gives is solely up to the format, and not defined in
 this protocol.
 
-At the time this is published, the response types are works in progress. The
-only known response type is "application/dns-udpwireformat", but it is likely that
-at least one JSON-based response format might be defined in the future.
-
-The DNS response MAY have one or more EDNS(0) extensions, depending on the
+The DNS response for "application/dns-udpwireformat" in {{dnswire}}
+MAY have one or more EDNS(0) extensions, depending on the
 extension definition of the extensions given in the DNS request.
 
 Native HTTP methods are used to correlate requests and
@@ -469,54 +387,6 @@ Published specification:  This document.
 
 Applications that use this media type:
   Systems that want to exchange full DNS messages.
-
-Additional information:
-
-Magic number(s):  n/a
-
-File extension(s):  n/a
-
-Macintosh file type code(s):  n/a
-
-Person & email address to contact for further information:
-   Paul Hoffman, paul.hoffman@icann.org
-
-Intended usage:  COMMON
-
-Restrictions on usage:  n/a
-
-Author:  Paul Hoffman, paul.hoffman@icann.org
-
-Change controller:  IESG
-~~~~~
-
-## Registration of application/simpledns+json Media Type
-
-~~~~~
-To: ietf-types@iana.org
-Subject: Registration of MIME media type application/simpledns+json
-
-MIME media type name: application
-
-MIME subtype name: simpledns+json
-
-Required parameters: n/a
-
-Optional parameters: n/a
-
-Encoding considerations: This is a binary format. The contents are
-JSON {{RFC7159}}. (Note that {{RFC7159}} states that JSON is a
-binary format.)
-
-Security considerations:  See {{RFC7159}}, Section 12.
-
-Interoperability considerations:  None.
-
-Published specification:  This document.
-
-Applications that use this media type:
-  Systems that want to exchange short DNS queries and limited
-  DNS responses.
 
 Additional information:
 
