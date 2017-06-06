@@ -31,7 +31,6 @@ author:
 normative:
   RFC1035:
   RFC2119:
-  RFC3986:
   RFC4648:
   RFC5246:
   RFC5785:
@@ -220,7 +219,7 @@ For example, assume a DNS API server is following this specification
 on origin https://dnsserver.example.net/ and the well-known path. The
 DNS API client chooses to send its requests in
 appliation/dns-udpwirefomat but indicates it can parse replies in that
-format or as a json based content type.
+format or as a JSON-based content type.
 
 The examples uses HTTP/2 formatting from {{RFC7540}}.
 
@@ -417,6 +416,18 @@ traffic analysis which might be particularly acute when dealing with
 DNS queries. Sections 10.6 (Compression) and 10.7 (Padding) of
 {{RFC7540}} provide some further advice on mitigations within an
 HTTP/2 context.
+
+A server that is acting both as a normal web server and a DNS API
+server is in a position to choose which DNS names it forces a
+client to resolve (through its web service) and also be the one to
+answer those queries (through its DNS API service). An untrusted
+DNS API server can thus easily cause damage by poisoning a client's
+cache with names that the DNS API server chooses to poison. A
+client MUST NOT trust a DNS API server simply because it was
+discovered, or because the client was told to trust the DNS API
+server by an untrusted party. Instead, a client MUST only trust DNS
+API server that is configured as trustworthy.
+
 
 # Acknowledgments
 
